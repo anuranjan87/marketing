@@ -364,7 +364,7 @@ const keywordOperations = cleanKeywords.map(
 // google-ads-api@24.1.0 has an overly restrictive
 // TypeScript type for create().
 // These are valid create operations even though
-// the generated type expects the full resource.
+// the geated type expects the full resource.
 await customer.adGroupCriteria.create(
   keywordOperations as any
 );
