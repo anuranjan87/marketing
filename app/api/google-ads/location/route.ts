@@ -1,21 +1,37 @@
 import { NextResponse } from "next/server";
 import { GoogleAdsApi } from "google-ads-api";
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+};
+
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: corsHeaders,
+  });
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
 
-    const query =
-      searchParams.get("query")?.trim() || "";
-
+    const query = searchParams.get("query")?.trim() || "";
     const countryCode =
       searchParams.get("countryCode")?.trim() || "";
 
     if (!query) {
-      return NextResponse.json({
-        success: true,
-        locations: [],
-      });
+      return NextResponse.json(
+        {
+          success: true,
+          locations: [],
+        },
+        {
+          headers: corsHeaders,
+        }
+      );
     }
 
     // --------------------------------------------------
@@ -23,14 +39,9 @@ export async function GET(request: Request) {
     // --------------------------------------------------
 
     const client = new GoogleAdsApi({
-      client_id:
-        process.env.GOOGLE_ADS_CLIENT_ID!,
-
-      client_secret:
-        process.env.GOOGLE_ADS_CLIENT_SECRET!,
-
-      developer_token:
-        process.env.GOOGLE_ADS_DEVELOPER_TOKEN!,
+      client_id: process.env.GOOGLE_ADS_CLIENT_ID!,
+      client_secret: process.env.GOOGLE_ADS_CLIENT_SECRET!,
+      developer_token: process.env.GOOGLE_ADS_DEVELOPER_TOKEN!,
     });
 
     // --------------------------------------------------
@@ -38,14 +49,10 @@ export async function GET(request: Request) {
     // --------------------------------------------------
 
     const customer = client.Customer({
-      customer_id:
-        process.env.GOOGLE_ADS_CUSTOMER_ID!,
-
+      customer_id: process.env.GOOGLE_ADS_CUSTOMER_ID!,
       login_customer_id:
         process.env.GOOGLE_ADS_LOGIN_CUSTOMER_ID,
-
-      refresh_token:
-        process.env.GOOGLE_ADS_REFRESH_TOKEN!,
+      refresh_token: process.env.GOOGLE_ADS_REFRESH_TOKEN!,
     });
 
     // --------------------------------------------------
@@ -54,7 +61,6 @@ export async function GET(request: Request) {
 
     const requestBody: any = {
       locale: "en",
-
       location_names: {
         names: [query],
       },
@@ -71,99 +77,81 @@ export async function GET(request: Request) {
     // --------------------------------------------------
 
     const response =
-      await customer.geoTargetConstants
-        .suggestGeoTargetConstants(
-          requestBody
-        );
+      await customer.geoTargetConstants.suggestGeoTargetConstants(
+        requestBody
+      );
 
     // --------------------------------------------------
     // FORMAT RESULTS
     // --------------------------------------------------
 
     const suggestions =
-      response.geo_target_constant_suggestions ||
-      [];
+      response.geo_target_constant_suggestions || [];
 
-    const locations =
-      suggestions
-        .map((suggestion: any) => {
-          const geo =
-            suggestion.geo_target_constant;
+    const locations = suggestions
+      .map((suggestion: any) => {
+        const geo = suggestion.geo_target_constant;
 
-          if (!geo) {
-            return null;
-          }
+        if (!geo) {
+          return null;
+        }
 
-          return {
-            id:
-              geo.id?.toString() || "",
+        return {
+          id: geo.id?.toString() || "",
 
-            name:
-              geo.name || "",
+          name: geo.name || "",
 
-            canonicalName:
-              geo.canonical_name || "",
+          canonicalName:
+            geo.canonical_name || "",
 
-            countryCode:
-              geo.country_code || "",
+          countryCode:
+            geo.country_code || "",
 
-            targetType:
-              geo.target_type || "",
+          targetType:
+            geo.target_type || "",
 
-            status:
-              geo.status || "",
+          status:
+            geo.status || "",
+
+          resourceName:
+            geo.resource_name || "",
+
+          reach: suggestion.reach
+            ? Number(suggestion.reach)
+            : null,
+
+          searchTerm:
+            suggestion.search_term || query,
+
+          parents: (
+            suggestion.geo_target_constant_parents || []
+          ).map((parent: any) => ({
+            id: parent.id?.toString() || "",
+
+            name: parent.name || "",
 
             resourceName:
-              geo.resource_name || "",
-
-            reach:
-              suggestion.reach
-                ? Number(
-                    suggestion.reach
-                  )
-                : null,
-
-            searchTerm:
-              suggestion.search_term ||
-              query,
-
-            parents:
-              (
-                suggestion.geo_target_constant_parents ||
-                []
-              ).map(
-                (parent: any) => ({
-                  id:
-                    parent.id?.toString() ||
-                    "",
-
-                  name:
-                    parent.name || "",
-
-                  resourceName:
-                    parent.resource_name ||
-                    "",
-                })
-              ),
-          };
-        })
-        .filter(Boolean);
+              parent.resource_name || "",
+          })),
+        };
+      })
+      .filter(Boolean);
 
     // --------------------------------------------------
     // RESPONSE
     // --------------------------------------------------
 
-    return NextResponse.json({
-      success: true,
-
-      query,
-
-      count:
-        locations.length,
-
-      locations,
-    });
-
+    return NextResponse.json(
+      {
+        success: true,
+        query,
+        count: locations.length,
+        locations,
+      },
+      {
+        headers: corsHeaders,
+      }
+    );
   } catch (error: any) {
     console.error(
       "Google Ads location search error:",
@@ -172,9 +160,7 @@ export async function GET(request: Request) {
 
     // Detailed Google Ads error logging
     if (error?.errors) {
-      for (
-        const err of error.errors
-      ) {
+      for (const err of error.errors) {
         console.error(
           "Google Ads location error:",
           err.message
@@ -222,6 +208,7 @@ export async function GET(request: Request) {
       },
       {
         status: 500,
+        headers: corsHeaders,
       }
     );
   }
