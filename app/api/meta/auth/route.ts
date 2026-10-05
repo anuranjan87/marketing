@@ -14,11 +14,9 @@ export async function GET() {
   }
 
   const scopes = [
-    "ads_read",
     "ads_management",
-    "pages_show_list",
-    "pages_read_engagement",
-    "pages_manage_ads",
+    "ads_read",
+    "business_management",
   ].join(",");
 
   const params = new URLSearchParams({
