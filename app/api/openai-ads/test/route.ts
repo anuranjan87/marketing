@@ -45,43 +45,74 @@ async function adsRequest(
   };
 }
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
-    const imageUrl = process.env.OPENAI_ADS_IMAGE_URL;
-    if (!imageUrl) {
+    const requestBody = await request.json().catch(() => ({}));
+    const campaignName = String(requestBody.campaignName || "").trim();
+    const adGroupName = String(requestBody.adGroupName || "").trim();
+    const adName = String(requestBody.adName || "").trim();
+    const title = String(requestBody.title || "").trim();
+    const body = String(requestBody.body || "").trim();
+    const targetUrl = String(requestBody.targetUrl || "").trim();
+    const imageUrl = String(requestBody.imageUrl || "").trim();
+    const lifetimeBudget = Number(requestBody.lifetimeBudget);
+    const maxBid = Number(requestBody.maxBid);
+    const contextHints = Array.isArray(requestBody.contextHints)
+      ? requestBody.contextHints
+          .map((hint: unknown) => String(hint).trim())
+          .filter(Boolean)
+      : [];
+
+    if (
+      !campaignName ||
+      !adGroupName ||
+      !adName ||
+      !title ||
+      !body ||
+      !targetUrl ||
+      !imageUrl ||
+      !Number.isFinite(lifetimeBudget) ||
+      lifetimeBudget <= 0 ||
+      !Number.isFinite(maxBid) ||
+      maxBid <= 0 ||
+      contextHints.length === 0
+    ) {
       return NextResponse.json(
         {
           success: false,
-          failed_step: "configuration",
-          error: "Set OPENAI_ADS_IMAGE_URL to a publicly accessible PNG or JPEG creative image URL.",
+          failed_step: "validation",
+          error: "Complete every field with a positive budget and bid, and provide at least one context hint.",
         },
-        { status: 500 }
+        { status: 400 }
       );
     }
 
     let parsedImageUrl: URL;
+    let parsedTargetUrl: URL;
     try {
       parsedImageUrl = new URL(imageUrl);
+      parsedTargetUrl = new URL(targetUrl);
     } catch {
       return NextResponse.json(
         {
           success: false,
-          failed_step: "configuration",
-          error: "OPENAI_ADS_IMAGE_URL must be a valid public HTTP or HTTPS image URL.",
+          failed_step: "url_validation",
+          error: "The image and destination URLs must be valid HTTP or HTTPS URLs.",
         },
-        { status: 500 }
+        { status: 400 }
       );
     }
 
     if (
       !["http:", "https:"].includes(parsedImageUrl.protocol) ||
-      parsedImageUrl.pathname.toLowerCase().endsWith(".ico")
+      parsedImageUrl.pathname.toLowerCase().endsWith(".ico") ||
+      !["http:", "https:"].includes(parsedTargetUrl.protocol)
     ) {
       return NextResponse.json(
         {
           success: false,
-          failed_step: "configuration",
-          error: "OPENAI_ADS_IMAGE_URL must point to a publicly accessible PNG or JPEG, not an ICO favicon.",
+          failed_step: "url_validation",
+          error: "Use HTTP or HTTPS URLs, and do not use an ICO favicon as the creative image.",
         },
         { status: 400 }
       );
@@ -159,14 +190,16 @@ export async function POST() {
       {
         method: "POST",
         body: JSON.stringify({
-          name: "7Wingz Test Campaign",
+          name: campaignName,
 
           status: "paused",
 
           bidding_type: "impressions",
 
           budget: {
-            lifetime_spend_limit_micros: 25000000,
+            lifetime_spend_limit_micros: Math.round(
+              lifetimeBudget * 1_000_000
+            ),
           },
         }),
       }
@@ -200,22 +233,18 @@ export async function POST() {
           campaign_id:
             campaignResult.data.id,
 
-          name: "7Wingz Test Group",
+          name: adGroupName,
 
           status: "paused",
 
-          context_hints: [
-            "website builder",
-            "AI website builder",
-            "AI",
-          ],
+          context_hints: contextHints,
 
           bidding_config: {
-            billing_event_type: "click",
+            billing_event_type: "impression",
 
             strategy: "fixed_bid",
 
-            max_bid_micros: 60000,
+            max_bid_micros: Math.round(maxBid * 1_000_000),
           },
         }),
       }
@@ -250,21 +279,18 @@ export async function POST() {
           ad_group_id:
             adGroupResult.data.id,
 
-          name: "7Wingz Test Ad",
+          name: adName,
 
           status: "paused",
 
           creative: {
             type: "chat_card",
 
-            title:
-              "Build your website with AI",
+            title,
 
-            body:
-              "Create and launch your website with 7Wingz.",
+            body,
 
-            target_url:
-              "https://7wingz.com",
+            target_url: targetUrl,
 
             file_id:
               uploadResult.data.file_id,

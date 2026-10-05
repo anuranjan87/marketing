@@ -306,14 +306,15 @@ export default function MetaAdsPage() {
           <section className="mb-8 flex flex-col gap-5 border-y border-zinc-200 py-5 sm:flex-row sm:items-center sm:justify-between" aria-label="Ad account billing" aria-live="polite">
             <div>
               <h2 className="text-sm font-semibold text-zinc-900">Account billing</h2>
+              <p className="mt-1 text-xs text-zinc-500">Available prepaid funds are shown in Meta billing.</p>
               {billingError ? (
-                <p className="mt-1 text-sm text-red-600">{billingError}</p>
+                <p className="mt-2 text-sm text-red-600">{billingError}</p>
               ) : billingLoading ? (
-                <p className="mt-1 text-sm text-zinc-500">Loading account balance...</p>
+                <p className="mt-2 text-sm text-zinc-500">Loading billing details...</p>
               ) : (
                 <dl className="mt-3 flex flex-wrap gap-x-10 gap-y-3">
                   <div>
-                    <dt className="text-xs text-zinc-500">Balance</dt>
+                    <dt className="text-xs text-zinc-500">Amount due</dt>
                     <dd className="mt-0.5 text-lg font-semibold text-zinc-900">
                       {formatMetaAmount(accountBilling?.balance, accountBilling?.currency)}
                     </dd>
