@@ -1706,7 +1706,7 @@ export default function GoogleAdsPage() {
                 ) : (
                   <>
                     <Icon name="trash" size={13} />
-                    Remove campaign
+                    Remove campaign.
                   </>
                 )}
               </button>
